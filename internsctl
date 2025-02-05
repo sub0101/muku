@@ -1,0 +1,85 @@
+#!/bin/bash
+echo "Hello, Interns!"
+
+cli_version() {
+    # --version: Show version
+    echo "v0.1.0"
+    exit
+}
+
+getinfo() {
+	if [[ $1 != "" ]] 
+	
+	then
+
+	stat -c  "	
+	File:   %n
+	Access:   %A
+	Size(B):   %s
+	Owner:   %U
+	Modify:   %y" "$1"
+else 
+	
+		echo "please input the file name\n"
+	fi
+}
+
+
+
+
+
+
+case $1 in
+    "--version")
+	cli_version
+	;;
+"cpu")
+	if [[ $2 == "getinfo"  ]]
+	then
+    	lscpu
+        fi
+    ;;
+
+    "memory")
+	if [[ $2 == "getinfo"  ]]
+	then
+    free
+        fi
+    ;;
+"user")
+	if [[ $2 == "list" ]]
+	then
+	if [[ $3 == "--sudo-only" ]]
+	then
+		getent group sudo | awk -F: '{print $4}'
+	elif [[ $3 == "" ]] 
+	then
+		getent passwd
+	fi
+
+	
+	elif [[ $2 == "create" ]]
+	then
+		if [[ $3 != "" ]]
+		then
+			sudo adduser $3
+		fi
+
+	
+	fi
+
+	;;
+"file")
+	if [[ $2 == "getinfo" ]] 
+	then
+		getinfo $3
+	fi
+	;;
+
+	
+
+   
+    *)
+    echo "Unknown fruit."
+        ;;
+esac
