@@ -1,0 +1,113 @@
+#!/bin/bash
+
+# Function to display the version of the script
+cli_version() {
+    echo "internsctl v0.1.0"
+    exit 0
+}
+
+# Function to display help information
+cli_help() {
+    echo "Usage: internsctl [OPTION] [COMMAND] [ARGUMENTS]"
+    echo "Custom command line tool for interns."
+    echo ""
+    echo "Options:"
+    echo "  --version       Show the version of the script"
+    echo "  --help          Show this help message"
+    echo ""
+    echo "Commands:"
+    echo "  cpu getinfo     Display CPU information"
+    echo "  memory getinfo  Display memory information"
+    echo "  user list       List users"
+    echo "    --sudo-only   List only users with sudo privileges"
+    echo "  user create     Create a new user"
+    echo "  file getinfo    Display file information"
+    echo ""
+    exit 0
+}
+
+# Function to get file information
+getinfo() {
+    if [[ -z $1 ]]; then
+        echo "Error: Please provide a file name."
+        exit 1
+    fi
+
+    if [[ ! -e $1 ]]; then
+        echo "Error: File '$1' does not exist."
+        exit 1
+    fi
+
+    stat -c  "
+    File:   %n
+    Access: %A
+    Size(B): %s
+    Owner:  %U
+    Modify: %y" "$1"
+}
+
+# Main script logic
+case $1 in
+    "--version")
+        cli_version
+        ;;
+    "--help")
+        cli_help
+        ;;
+    "cpu")
+        if [[ $2 == "getinfo" ]]; then
+            lscpu
+        else
+            echo "Error: Unknown command for cpu. Use 'cpu getinfo'."
+            exit 1
+        fi
+        ;;
+    "memory")
+        if [[ $2 == "getinfo" ]]; then
+            free
+        else
+            echo "Error: Unknown command for memory. Use 'memory getinfo'."
+            exit 1
+        fi
+        ;;
+    "user")
+        case $2 in
+            "list")
+                if [[ $3 == "--sudo-only" ]]; then
+                    getent group sudo | awk -F: '{print $4}'
+                elif [[ -z $3 ]]; then
+                    getent passwd
+                else
+                    echo "Error: Unknown option for user list. Use 'user list [--sudo-only]'."
+                    exit 1
+                fi
+                ;;
+            "create")
+                if [[ -n $3 ]]; then
+                    sudo adduser "$3"
+                else
+                    echo "Error: Please provide a username to create."
+                    exit 1
+                fi
+                ;;
+            *)
+                echo "Error: Unknown command for user. Use 'user list' or 'user create'."
+                exit 1
+                ;;
+        esac
+        ;;
+    "file")
+        if [[ $2 == "getinfo" ]]; then
+            getinfo "$3"
+        else
+            echo "Error: Unknown command for file. Use 'file getinfo'."
+            exit 1
+        fi
+        ;;
+    *)
+        echo "Error: Unknown option or command. Use '--help' for usage information."
+        exit 1
+        ;;
+esac
+
+exit 0
