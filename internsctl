@@ -1,85 +1,161 @@
 #!/bin/bash
-echo "Hello, Interns!"
 
+# Function to display the version of the script
 cli_version() {
-    # --version: Show version
-    echo "v0.1.0"
-    exit
+    echo "internsctl v0.1.0"
+    exit 0
 }
 
+# Function to display help information
+cli_help() {
+    echo "Usage: internsctl [OPTION] [COMMAND] [ARGUMENTS]"
+    echo "Custom command line tool for interns."
+    echo ""
+    echo "Options:"
+    echo "  --version       Show the version of the script"
+    echo "  --help          Show this help message"
+    echo ""
+    echo "Commands:"
+    echo "  cpu getinfo     Display CPU information"
+    echo "  memory getinfo  Display memory information"
+    echo "  user list       List users"
+    echo "    --sudo-only   List only users with sudo privileges"
+    echo "  user create     Create a new user"
+    echo "  file getinfo    Display file information"
+    echo "    --size        Show file size"
+    echo "    --permissions Show file permissions"
+    echo "    --owner       Show file owner"
+    echo "    --last_modified Show last modification time"
+    echo ""
+    exit 0
+}
+
+# Function to list users (only real users with home directories)
+user_list() {
+    if [[ $1 == "--sudo-only" ]]; then
+        if getent group sudo >/dev/null; then
+            echo "Sudo Users:"
+            getent group sudo | cut -d: -f4 | tr ',' '\n'
+        else
+            echo "No sudo users found or system does not use a 'sudo' group."
+        fi
+    elif [[ -z $1 ]]; then
+        echo "All Users:"
+        awk -F: '{ if ($3 >= 1000 && $6 ~ /^\/home\//) print $1 }' /etc/passwd
+    else
+        echo "Error: Invalid option '$1'. Use 'user list' or 'user list --sudo-only'."
+        exit 1
+    fi
+}
+
+# Function to create a user with home directory and Bash shell
+user_create() {
+    if [[ -z $1 ]]; then
+        echo "Error: Please provide a username to create."
+        exit 1
+    fi
+
+    # Check if user already exists
+    if id "$1" &>/dev/null; then
+        echo "Error: User '$1' already exists."
+        exit 1
+    fi
+
+    # Create user with home directory and Bash shell
+    sudo useradd -m -s /bin/bash "$1" && echo "User '$1' created successfully."
+}
+
+# Function to get file information with additional options
 getinfo() {
-	if [[ $1 != "" ]] 
-	
-	then
+    if [[ -z $1 ]]; then
+        echo "Error: Please provide a file name."
+        exit 1
+    fi
 
-	stat -c  "	
-	File:   %n
-	Access:   %A
-	Size(B):   %s
-	Owner:   %U
-	Modify:   %y" "$1"
-else 
-	
-		echo "please input the file name\n"
-	fi
+    if [[ ! -e $1 ]]; then
+        echo "Error: File '$1' does not exist."
+        exit 1
+    fi
+
+    case $2 in
+        "--size")
+            stat -c "Size(B): %s" "$1"
+            ;;
+        "--permissions")
+            stat -c "Access: %A" "$1"
+            ;;
+        "--owner")
+            stat -c "Owner: %U" "$1"
+            ;;
+        "--last_modified")
+            stat -c "Modify: %y" "$1"
+            ;;
+        "")
+            stat -c "
+            File:   %n
+            Access: %A
+            Size(B): %s
+            Owner:  %U
+            Modify: %y" "$1"
+            ;;
+        *)
+            echo "Error: Invalid option '$2'. Use '--size', '--permissions', '--owner', or '--last_modified'."
+            exit 1
+            ;;
+    esac
 }
 
-
-
-
-
-
+# Main script logic
 case $1 in
     "--version")
-	cli_version
-	;;
-"cpu")
-	if [[ $2 == "getinfo"  ]]
-	then
-    	lscpu
+        cli_version
+        ;;
+    "--help")
+        cli_help
+        ;;
+    "cpu")
+        if [[ $2 == "getinfo" ]]; then
+            lscpu
+        else
+            echo "Error: Unknown command for cpu. Use 'cpu getinfo'."
+            exit 1
         fi
-    ;;
-
+        ;;
     "memory")
-	if [[ $2 == "getinfo"  ]]
-	then
-    free
+        if [[ $2 == "getinfo" ]]; then
+            free -h
+        else
+            echo "Error: Unknown command for memory. Use 'memory getinfo'."
+            exit 1
         fi
-    ;;
-"user")
-	if [[ $2 == "list" ]]
-	then
-	if [[ $3 == "--sudo-only" ]]
-	then
-		getent group sudo | awk -F: '{print $4}'
-	elif [[ $3 == "" ]] 
-	then
-		getent passwd
-	fi
-
-	
-	elif [[ $2 == "create" ]]
-	then
-		if [[ $3 != "" ]]
-		then
-			sudo adduser $3
-		fi
-
-	
-	fi
-
-	;;
-"file")
-	if [[ $2 == "getinfo" ]] 
-	then
-		getinfo $3
-	fi
-	;;
-
-	
-
-   
+        ;;
+    "user")
+        case $2 in
+            "list")
+                user_list "$3"
+                ;;
+            "create")
+                user_create "$3"
+                ;;
+            *)
+                echo "Error: Unknown command for user. Use 'user list' or 'user create'."
+                exit 1
+                ;;
+        esac
+        ;;
+    "file")
+        if [[ $2 == "getinfo" ]]; then
+            getinfo "$3" "$4"
+        else
+            echo "Error: Unknown command for file. Use 'file getinfo'."
+            exit 1
+        fi
+        ;;
     *)
-    echo "Unknown fruit."
+        echo "Error: Unknown option or command. Use '--help' for usage information."
+        exit 1
         ;;
 esac
+
+exit 0
+
